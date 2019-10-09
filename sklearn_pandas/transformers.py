@@ -47,6 +47,14 @@ class CategoricalImputer(BaseEstimator, TransformerMixin):
         modes in your data and you want to choose a particular one. If
         `strategy` is not set to `constant`, this parameter is ignored.
 
+    tie_breaking: string, optional (default='error')
+        If the strategy is `most_frequent` and there is a tie for most frequent
+        value when the mode is computed, a tie breaker will be applied.
+
+        - If "random" will choose randomly from the tied set.
+        - If "first" will take the first element of the tied set.
+        - If "error" will throw an exception.
+
     Attributes
     ----------
     fill_ : str
@@ -59,17 +67,25 @@ class CategoricalImputer(BaseEstimator, TransformerMixin):
         missing_values='NaN',
         strategy='most_frequent',
         fill_value='?',
-        copy=True
+        tie_breaking='error',
+        copy=True,
     ):
         self.missing_values = missing_values
         self.copy = copy
         self.fill_value = fill_value
         self.strategy = strategy
+        self.tie_breaking = tie_breaking
 
         strategies = ['constant', 'most_frequent']
         if self.strategy not in strategies:
             raise ValueError(
                 'Strategy {0} not in {1}'.format(self.strategy, strategies)
+            )
+
+        tie_breaking_strategies = ['error', 'first', 'random']
+        if self.tie_breaking not in tie_breaking_strategies:
+            raise ValueError(
+                'Strategy {0} not in {1}'.format(self.tie_breaking, tie_breaking_strategies)
             )
 
     def fit(self, X, y=None):
@@ -97,9 +113,11 @@ class CategoricalImputer(BaseEstimator, TransformerMixin):
             modes = np.array([self.fill_value])
         if modes.shape[0] == 0:
             raise ValueError('Data is empty or all values are null')
-        elif modes.shape[0] > 1:
+        elif modes.shape[0] > 1 and self.tie_breaking == 'error':
             raise ValueError('No value is repeated more than '
-                             'once in the column')
+                            'once in the column')
+        elif self.tie_breaking == 'random':
+            self.fill_ = random.choice(modes[0])
         else:
             self.fill_ = modes[0]
 
